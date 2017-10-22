@@ -36,7 +36,7 @@ u2f = {};
   };
   u2f.Port.prototype.connect = function() {
     let readLoop = () => {
-      this.device_.transferIn(81, 2048).then(result => {
+      this.device_.transferIn(0x81, 2048).then(result => {
         u2f.log('<', result.data);
         this.onReceive(result.data);
         readLoop();
@@ -67,7 +67,7 @@ u2f = {};
   };
   u2f.Port.prototype.send = function(data) {
     u2f.log('>', data);
-    return this.device_.transferOut(81, data);
+    return this.device_.transferOut(0x81, data);
   };
 })();
 // rgb.js

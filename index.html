@@ -1,7 +1,147 @@
-<!DOCTYPE html>
-<html>
+<html><head><script>
+// serial.js
+u2f = {};
+(function() {
+  'use strict';
+  u2f.getPorts = function() {
+    return navigator.usb.getDevices().then(devices => {
+      return devices.map(device => new u2f.Port(device));
+    });
+  };
+  u2f.requestPort = function() {
+    const filters = [
+      { 'vendorId': 0x0b57, 'productId': 0x8420 }, // winusb
+    ];
+    return navigator.usb.requestDevice({ 'filters': filters }).then(
+      device => new u2f.Port(device)
+    );
+  };
+  u2f.log = function(dir, data) {
+    var u8 = new Uint8Array(data.buffer);
+    // hexdump
+    var s = '' + dir + '[' + u8.length + ']:';
+    for (var i = 0; i < u8.length; ++i) {
+      s += ('0123456789abcdef'.charAt(u8[i] >> 4));
+      s += ('0123456789abcdef'.charAt(u8[i] & 15));
+    }
+    // to textarea
+    var log = document.getElementById('log');
+    log.value = log.value + '' + s + '\r\n';
+    // and console
+    console.log(s);
+  };
+  u2f.Port = function(device) {
+    this.device_ = device;
+    console.log(device);
+  };
+  u2f.Port.prototype.connect = function() {
+    let readLoop = () => {
+      this.device_.transferIn(1, 2048).then(result => {
+        u2f.log('<', result.data);
+        this.onReceive(result.data);
+        readLoop();
+      }, error => {
+        this.onReceiveError(error);
+      });
+    };
+    return this.device_.open()
+        .then(() => {
+          if (this.device_.configuration === null) {
+            return this.device_.selectConfiguration(0);
+          }
+        })
+        .then(() => this.device_.claimInterface(0))
+        .then(() => {
+          var cmd = new Uint8Array(4+3+8);
+          cmd[0] = 0xff;
+          cmd[1] = 0xff;
+          cmd[2] = 0xff;
+          cmd[3] = 0xff;
+          cmd[4] = 0x86; // INIT
+          cmd[5] = 0;    // bcnth
+          cmd[6] = 8;    // bcntl
+          this.send(cmd);
+        })
+        .then(() => {
+          readLoop();
+        });
+  };
+  u2f.Port.prototype.disconnect = function() {
+    return this.device_.close();
+  };
+  u2f.Port.prototype.send = function(data) {
+    u2f.log('>', data);
+    return this.device_.transferOut(1, data);
+  };
+})();
+// rgb.js
+(function() {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', event => {
+    let connectButton = document.querySelector("#connect");
+    let statusDisplay = document.querySelector('#status');
+    let infoButton = document.querySelector('#info');
+    let port;
+    function connect() {
+      port.connect().then(() => {
+        statusDisplay.textContent = '';
+        connectButton.textContent = 'Disconnect';
+        port.onReceive = data => {
+          // do something w/ data.buffer
+        }
+        port.onReceiveError = error => {
+          console.error(error);
+        }
+      }, error => {
+        statusDisplay.textContent = error;
+      });
+    }
+    function onUpdate() {
+      if (!port) {
+        return;
+      }
+      let u8 = new Uint8Array(7);
+      u8[0] = 1;    // CID != 0
+      u8[4] = 0x85; // SYSINFO
+      u8[6] = 0;
+      u8[7] = 0;
+      port.send(u8);
+    }
+    infoButton.addEventListener('click', onUpdate);
+    connectButton.addEventListener('click', function() {
+      if (port) {
+        port.disconnect();
+        connectButton.textContent = 'Connect';
+        statusDisplay.textContent = '';
+        port = null;
+      } else {
+        u2f.requestPort().then(selectedPort => {
+          port = selectedPort;
+          connect();
+        }).catch(error => {
+          statusDisplay.textContent = error;
+        });
+      }
+    });
+    u2f.getPorts().then(ports => {
+      if (ports.length == 0) {
+        statusDisplay.textContent = 'No device found.';
+      } else {
+        statusDisplay.textContent = 'Connecting...';
+        port = ports[0];
+        connect();
+      }
+    });
+  });
+})();
+</script>
+</head>
 <body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+    <p>
+      <button id="connect">Connect</button>
+      <button id="info">Info</button>
+      <span id="status"></span>
+    </p>
+    <textarea id="log" readonly cols="120" rows="50"></textarea>
 </body>
 </html>

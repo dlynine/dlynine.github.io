@@ -53,13 +53,9 @@ u2f = {};
         .then(() => this.device_.claimInterface(0))
         .then(() => {
           var cmd = new Uint8Array(4+3+8);
-          cmd[0] = 0xff;
-          cmd[1] = 0xff;
-          cmd[2] = 0xff;
-          cmd[3] = 0xff;
-          cmd[4] = 0x86; // INIT
-          cmd[5] = 0;    // bcnth
-          cmd[6] = 8;    // bcntl
+          cmd[0] = 0x05;
+          cmd[1] = 0x11;
+          cmd[2] = 0x70;
           this.send(cmd);
         })
         .then(() => {

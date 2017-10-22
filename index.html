@@ -52,7 +52,7 @@ u2f = {};
         })
         .then(() => this.device_.claimInterface(0))
         .then(() => {
-          var cmd = new Uint8Array(4+3+8);
+          var cmd = new Uint8Array(3);
           cmd[0] = 0x05;
           cmd[1] = 0x11;
           cmd[2] = 0x70;

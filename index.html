@@ -11,6 +11,7 @@ u2f = {};
   u2f.requestPort = function() {
     const filters = [
       { 'vendorId': 0x0b57, 'productId': 0x8420 }, // winusb
+      { 'vendorId': 0x0b57, 'productId': 0x7668 }, // winusb
     ];
     return navigator.usb.requestDevice({ 'filters': filters }).then(
       device => new u2f.Port(device)
